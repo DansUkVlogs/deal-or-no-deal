@@ -8,6 +8,7 @@ class AudioManager {
         this.currentBackground = null;
         this.phoneRingLoop = null;
         this.isEnabled = true;
+        this.isMuted = this.loadMutedState(); // Load from localStorage
         this.volumes = {
             background: 0.3,
             effects: 0.7,
@@ -152,8 +153,8 @@ class AudioManager {
      * Start playing ambience music
      */
     startAmbience() {
-        if (!this.isEnabled) {
-            console.log('🔇 Audio system disabled');
+        if (!this.shouldPlaySound()) {
+            console.log('🔇 Audio disabled or muted');
             return;
         }
         
@@ -337,7 +338,7 @@ class AudioManager {
      * Play a random good reaction sound
      */
     playGoodReaction() {
-        if (!this.isEnabled || !this.sounds.good || this.sounds.good.length === 0) return;
+        if (!this.shouldPlaySound() || !this.sounds.good || this.sounds.good.length === 0) return;
         
         const randomSound = this.sounds.good[Math.floor(Math.random() * this.sounds.good.length)];
         randomSound.volume = this.volumes.effects;
@@ -349,7 +350,7 @@ class AudioManager {
      * Play a random bad reaction sound
      */
     playBadReaction() {
-        if (!this.isEnabled || !this.sounds.bad || this.sounds.bad.length === 0) return;
+        if (!this.shouldPlaySound() || !this.sounds.bad || this.sounds.bad.length === 0) return;
         
         const randomSound = this.sounds.bad[Math.floor(Math.random() * this.sounds.bad.length)];
         randomSound.volume = this.volumes.effects;
@@ -543,7 +544,7 @@ class AudioManager {
      * @param {string} effectName - Name of the effect to play
      */
     async playSoundEffect(effectName) {
-        if (!this.isEnabled) return;
+        if (!this.shouldPlaySound()) return;
 
         const effectMap = {
             'deal': 'dealOrNoDeal',
@@ -567,12 +568,106 @@ class AudioManager {
     }
 
     /**
+     * Load muted state from localStorage
+     * @returns {boolean} Whether audio is muted
+     */
+    loadMutedState() {
+        try {
+            const saved = localStorage.getItem('dealOrNoDeal_muted');
+            return saved === 'true';
+        } catch (error) {
+            console.warn('Failed to load muted state from localStorage:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Save muted state to localStorage
+     * @param {boolean} muted - Whether audio is muted
+     */
+    saveMutedState(muted) {
+        try {
+            localStorage.setItem('dealOrNoDeal_muted', muted.toString());
+        } catch (error) {
+            console.warn('Failed to save muted state to localStorage:', error);
+        }
+    }
+
+    /**
+     * Toggle mute state
+     * @returns {boolean} New muted state
+     */
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        this.saveMutedState(this.isMuted);
+        
+        if (this.isMuted) {
+            // Mute all currently playing audio
+            this.muteAllAudio();
+            console.log('🔇 Audio muted');
+        } else {
+            // Unmute and restart background music if it was playing
+            this.unmuteAllAudio();
+            console.log('🔊 Audio unmuted');
+        }
+        
+        return this.isMuted;
+    }
+
+    /**
+     * Mute all currently playing audio
+     */
+    muteAllAudio() {
+        // Mute background music
+        if (this.currentBackground) {
+            this.currentBackground.volume = 0;
+        }
+        
+        // Stop phone ring
+        this.stopPhoneRing();
+        
+        // Mute any other playing sounds
+        Object.values(this.sounds).forEach(sound => {
+            if (sound && typeof sound.pause === 'function') {
+                sound.volume = 0;
+            } else if (Array.isArray(sound)) {
+                sound.forEach(s => {
+                    if (s && typeof s.pause === 'function') {
+                        s.volume = 0;
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Unmute all audio and restore volumes
+     */
+    unmuteAllAudio() {
+        // Restore background music volume
+        if (this.currentBackground) {
+            this.currentBackground.volume = this.volumes.background;
+        }
+        
+        // Note: Other sounds will get proper volume when they're played next
+    }
+
+    /**
+     * Check if a sound should play (not muted)
+     * @returns {boolean} Whether sound should play
+     */
+    shouldPlaySound() {
+        return this.isEnabled && !this.isMuted;
+    }
+
+    /**
      * Get audio system status
      * @returns {Object} Status information
      */
     getStatus() {
         return {
             enabled: this.isEnabled,
+            muted: this.isMuted,
             currentBackground: this.currentBackground ? 'playing' : 'none',
             phoneRinging: !!this.phoneRingLoop,
             soundsLoaded: {

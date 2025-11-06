@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create game instance
         game = new Game();
         
+        // Setup mute button
+        setupMuteButton();
+        
         // Show audio system status
         setTimeout(() => {
             const audioStatus = game.audioManager.getStatus();
@@ -22,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn('⚠️ Audio system disabled');
             } else {
                 const soundCount = audioStatus.soundsLoaded.good + audioStatus.soundsLoaded.bad;
-                console.log(`🔊 Audio enabled - ${soundCount} sound effects loaded`);
+                console.log(`🔊 Audio ${audioStatus.muted ? 'muted' : 'enabled'} - ${soundCount} sound effects loaded`);
                 
                 if (soundCount === 0) {
                     console.log('💡 No audio files found. To add audio, create:');
@@ -45,6 +48,41 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Game failed to load. Please refresh the page.');
     }
 });
+
+/**
+ * Setup mute button functionality
+ */
+function setupMuteButton() {
+    const muteButton = document.getElementById('mute-toggle-btn');
+    const muteIcon = document.getElementById('mute-icon');
+    const muteText = document.getElementById('mute-text');
+    
+    if (!muteButton || !muteIcon || !muteText) {
+        console.warn('Mute button elements not found');
+        return;
+    }
+    
+    // Set initial state based on saved preference
+    updateMuteButtonUI(game.audioManager.isMuted);
+    
+    // Add click event listener
+    muteButton.addEventListener('click', () => {
+        const isMuted = game.audioManager.toggleMute();
+        updateMuteButtonUI(isMuted);
+    });
+    
+    function updateMuteButtonUI(isMuted) {
+        if (isMuted) {
+            muteIcon.textContent = '🔇';
+            muteText.textContent = 'Muted';
+            muteButton.classList.add('muted');
+        } else {
+            muteIcon.textContent = '🔊';
+            muteText.textContent = 'Sound';
+            muteButton.classList.remove('muted');
+        }
+    }
+}
 
 /**
  * Setup development tools
