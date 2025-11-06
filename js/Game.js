@@ -5,9 +5,10 @@ class Game {
     constructor() {
         // Initialize all game components
         this.animator = new Animator();
+        this.audioManager = new AudioManager();
         this.board = new Board(this.animator);
         this.banker = new Banker(this.animator);
-        this.ui = new UI(this.animator);
+        this.ui = new UI(this.animator, this.audioManager);
         
         // Game state
         this.gameState = 'waiting'; // waiting, selecting, playing, banker_offer, game_over
@@ -58,6 +59,10 @@ class Game {
      * Start a new game
      */
     startNewGame() {
+        // Reset audio
+        this.audioManager.stopAllAudio();
+        this.audioManager.startBackgroundMusic();
+        
         // Reset all components
         this.board.reset();
         this.banker.reset();
@@ -157,6 +162,10 @@ class Game {
         // Eliminate from money board
         await this.ui.eliminateMoneyValue(value);
         
+        // Play crowd reaction based on elimination
+        const remainingValues = this.board.getRemainingValues();
+        this.audioManager.playEliminationReaction(value, remainingValues);
+        
         // Update counters
         this.eliminatedThisRound++;
         const remainingCases = this.board.getRemainingCasesCount();
@@ -199,8 +208,14 @@ class Game {
         this.gameState = 'banker_offer';
         this.ui.setLoadingState(true);
         
+        // Start banker audio sequence
+        this.audioManager.onBankerEvent();
+        
         // Show "Answer Phone" button first
         await this.ui.showAnswerPhoneButton();
+        
+        // Phone answered - stop ringing
+        this.audioManager.onPhoneAnswered();
         
         // Then show banker offer
         await this.ui.showBankerOffer(offer);
@@ -214,6 +229,9 @@ class Game {
      */
     async handleDealAccepted() {
         this.ui.setLoadingState(true);
+        
+        // End banker audio sequence
+        this.audioManager.onBankerEnd();
         
         // Hide banker
         await this.ui.hideBankerSection();
@@ -262,6 +280,9 @@ class Game {
      */
     async handleDealRejected() {
         this.ui.setLoadingState(true);
+        
+        // End banker audio sequence
+        this.audioManager.onBankerEnd();
         
         // Hide banker
         await this.ui.hideBankerSection();
@@ -478,6 +499,9 @@ class Game {
         console.log('Last remaining case:', lastRemainingCase);
         console.log('Player case:', playerCase);
         
+        // Switch to banker music for final decision
+        await this.audioManager.switchToBankerMusic();
+        
         await this.ui.updateGameMessage('Final decision time!');
         
         // Show switch offer modal
@@ -490,6 +514,9 @@ class Game {
      * @param {Object} playerCase - The player's chosen briefcase
      */
     async showSwitchOfferModal(remainingCase, playerCase) {
+        // Play switch audio with banker music background
+        this.audioManager.onSwitchModal();
+        
         return new Promise(resolve => {
             // Create switch offer modal
             const switchModal = document.createElement('div');
@@ -605,6 +632,8 @@ class Game {
      * @param {Object} originalPlayerCase - The player's original briefcase
      */
     async handleSwitchDecision(switchChoice, remainingCase, originalPlayerCase) {
+        // No sound needed here - the swap box sound already played when modal opened
+        
         if (switchChoice) {
             // Player chose to switch
             this.board.switchPlayerCase(remainingCase.number);
@@ -640,6 +669,9 @@ class Game {
      * @param {Object} originalPlayerCase - The player's original briefcase
      */
     async endGameWithSwitch(switched, remainingCase, originalPlayerCase) {
+        // Stop all current audio - no sound needed for final reveal
+        await this.audioManager.stopBankerMusic();
+        
         // Get the final player case (either original or switched)
         const finalPlayerCase = switched ? remainingCase : originalPlayerCase;
         const otherCase = switched ? originalPlayerCase : remainingCase;
@@ -737,6 +769,9 @@ class Game {
         
         revealModal.appendChild(modalContent);
         document.body.appendChild(revealModal);
+        
+        // Play crowd reaction based on final amount
+        await this.audioManager.playEliminationReaction(finalPlayerCase.value, [], finalPlayerCase.value);
         
         // Handle play again button
         const playAgainBtn = revealModal.querySelector('#play-again-final-btn');

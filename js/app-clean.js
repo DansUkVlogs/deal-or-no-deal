@@ -13,6 +13,28 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create game instance
         game = new Game();
         
+        // Show audio system status
+        setTimeout(() => {
+            const audioStatus = game.audioManager.getStatus();
+            console.log('🎵 Audio System Status:', audioStatus);
+            
+            if (!audioStatus.enabled) {
+                console.warn('⚠️ Audio system disabled');
+            } else {
+                const soundCount = audioStatus.soundsLoaded.good + audioStatus.soundsLoaded.bad;
+                console.log(`🔊 Audio enabled - ${soundCount} sound effects loaded`);
+                
+                if (soundCount === 0) {
+                    console.log('💡 No audio files found. To add audio, create:');
+                    console.log('   - assets/sounds/ambience.mp3 (background music)');
+                    console.log('   - assets/sounds/banker.mp3 (banker music)');
+                    console.log('   - assets/sounds/deal-or-no-deal.mp3 (button sounds)');
+                    console.log('   - assets/sounds/good/ folder with reaction sounds');
+                    console.log('   - assets/sounds/bad/ folder with reaction sounds');
+                }
+            }
+        }, 1000);
+        
         // Setup development tools
         setupDevTools();
         
@@ -59,6 +81,37 @@ function setupDevTools() {
                     console.log('Difficulty set to:', level);
                 } else {
                     console.log('Game not initialized');
+                }
+            },
+            
+            audioStatus: () => {
+                return game ? game.audioManager.getStatus() : null;
+            },
+            
+            testAudio: () => {
+                if (game && game.audioManager) {
+                    console.log('Testing audio system...');
+                    console.log('Current audio status:', game.audioManager.getStatus());
+                    game.audioManager.startBackgroundMusic();
+                    setTimeout(() => game.audioManager.playSoundEffect('deal'), 2000);
+                } else {
+                    console.log('Audio manager not available');
+                }
+            },
+            
+            forceAmbience: () => {
+                if (game && game.audioManager && game.audioManager.sounds.ambience) {
+                    console.log('🎵 Force starting ambience...');
+                    const audio = game.audioManager.sounds.ambience;
+                    audio.volume = 0.3;
+                    audio.currentTime = 0;
+                    audio.play().then(() => {
+                        console.log('✅ Ambience started successfully!');
+                    }).catch(error => {
+                        console.log('❌ Ambience failed to start:', error);
+                    });
+                } else {
+                    console.log('Ambience audio not available');
                 }
             }
         };

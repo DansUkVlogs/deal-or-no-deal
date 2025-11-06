@@ -2,8 +2,9 @@
  * UI Class - Handles all user interface updates and interactions
  */
 class UI {
-    constructor(animator) {
+    constructor(animator, audioManager = null) {
         this.animator = animator;
+        this.audioManager = audioManager;
         this.elements = {};
         this.init();
     }
@@ -365,6 +366,11 @@ class UI {
         
         // Show modal with animation
         bankerModal.classList.add('active');
+        
+        // Play deal or no deal sound when modal appears
+        if (this.audioManager) {
+            this.audioManager.onDealOrNoDealModal();
+        }
         
         // Animate the offer counting up from £0
         await this.animator.animateOfferReveal(bankerPopupOffer, offer.formattedAmount);
